@@ -201,7 +201,8 @@ func Stateless(
 	check(err)
 	defer db.Close()
 
-	var genesis = core.DeveloperGenesisBlock(5, core.DevnetEtherbase)
+	//	var genesis = core.DeveloperGenesisBlock(5, core.DevnetEtherbase)
+	var genesis = core.MainnetGenesisBlock()
 	if genesisFile != "" {
 		genBytes, err := os.ReadFile(genesisFile)
 		if err != nil {
