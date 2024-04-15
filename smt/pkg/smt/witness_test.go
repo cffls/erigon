@@ -133,7 +133,7 @@ func TestSimpleSMTWitness(t *testing.T) {
 	buf := new(bytes.Buffer)
 	witness.WriteInto(buf, false)
 
-	fmt.Printf("SMT root: %s\n", smtTrie.LastRoot().String())
+	fmt.Printf("SMT root: %x\n", smtTrie.LastRoot().Bytes())
 	fmt.Printf("Witness: %s\n", hex.EncodeToString(buf.Bytes()))
 }
 
