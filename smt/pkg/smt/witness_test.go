@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/holiman/uint256"
 	libcommon "github.com/gateway-fm/cdk-erigon-lib/common"
 	"github.com/gateway-fm/cdk-erigon-lib/kv/memdb"
+	"github.com/holiman/uint256"
 	"github.com/ledgerwatch/erigon/chain"
 	"github.com/ledgerwatch/erigon/core/state"
 	"github.com/ledgerwatch/erigon/smt/pkg/db"
@@ -82,6 +82,25 @@ func prepareSMT(t *testing.T) (*smt.SMT, *trie.RetainList) {
 	return smtTrie, rl
 }
 
+func prepareSMTSimple(t *testing.T) (*smt.SMT, *trie.RetainList) {
+	contract := libcommon.HexToAddress("0x71dd1027069078091B3ca48093B00E4735B20624")
+
+	memdb := db.NewMemDb()
+
+	smtTrie := smt.NewSMT(memdb)
+
+	storage := make(map[string]string, 0)
+
+	for i := 0; i < 1; i++ {
+		k := libcommon.HexToHash(fmt.Sprintf("0x%d", i+1))
+		storage[k.String()] = k.String()
+	}
+
+	smtTrie.SetContractStorage(contract.String(), storage, nil)
+
+	return smtTrie, nil
+}
+
 func findNode(t *testing.T, w *trie.Witness, addr libcommon.Address, storageKey libcommon.Hash, nodeType int) []byte {
 	for _, operator := range w.Operators {
 		switch op := operator.(type) {
@@ -99,6 +118,23 @@ func findNode(t *testing.T, w *trie.Witness, addr libcommon.Address, storageKey 
 	}
 
 	return nil
+}
+
+func TestSimpleSMTWitness(t *testing.T) {
+	smtTrie, _ := prepareSMTSimple(t)
+
+	witness, err := smt.BuildWitness(smtTrie, nil, context.Background())
+
+	if err != nil {
+		t.Errorf("error building witness: %v", err)
+	}
+
+	// Print witness in hex format
+	buf := new(bytes.Buffer)
+	witness.WriteInto(buf, false)
+
+	fmt.Printf("SMT root: %s\n", smtTrie.LastRoot().String())
+	fmt.Printf("Witness: %s\n", hex.EncodeToString(buf.Bytes()))
 }
 
 func TestSMTWitnessRetainList(t *testing.T) {
