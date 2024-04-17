@@ -95,6 +95,12 @@ func (api *PrivateDebugAPIImpl) traceBlock(ctx context.Context, blockNrOrHash rp
 		return err
 	}
 
+	if config.Tracer != nil && *config.Tracer == "zeroTracer" {
+		reader := ibs.GetStateReader()
+		tds := state.NewTrieDbState(common.Hash{}, tx, blockNumber, reader)
+		ibs.SetStateReader(tds)
+	}
+
 	signer := types.MakeSigner(chainConfig, block.NumberU64(), block.Time())
 	rules := chainConfig.Rules(block.NumberU64(), block.Time())
 	stream.WriteArrayStart()

@@ -11,6 +11,7 @@ import (
 
 	"github.com/holiman/uint256"
 	libcommon "github.com/ledgerwatch/erigon-lib/common"
+	corestate "github.com/ledgerwatch/erigon/core/state"
 	"github.com/ledgerwatch/erigon/core/types"
 	"github.com/ledgerwatch/erigon/core/vm"
 	"github.com/ledgerwatch/erigon/crypto"
@@ -203,6 +204,28 @@ func (t *zeroTracer) CaptureTxEnd(restGas uint64) {
 	t.tx.Meta.GasUsed = t.gasLimit - restGas
 	*t.ctx.CumulativeGasUsed += t.tx.Meta.GasUsed
 
+	ibs := t.env.IntraBlockState()
+
+	tds := ibs.(*corestate.IntraBlockState).GetStateReader().(*corestate.TrieDbState)
+
+	addressReads := tds.BuildAddressReads()
+	for _, addr := range addressReads {
+		t.addAccountToTrace(addr)
+	}
+
+	storageReads := tds.BuildStorageReads()
+	for addr, keys := range storageReads {
+		for _, key := range keys {
+			t.addSLOADToAccount(addr, key)
+		}
+	}
+
+	codeReads := tds.BuildCodeReads()
+
+	for addr := range codeReads {
+		t.addAccountToTrace(addr)
+	}
+
 	for addr := range t.tx.Traces {
 		trace := t.tx.Traces[addr]
 		hasLiveAccount := t.env.IntraBlockState().HasLiveAccount(addr)
@@ -267,7 +290,7 @@ func (t *zeroTracer) CaptureTxEnd(restGas uint64) {
 				// DELEGATECALL, CALL, STATICCALL, CALLCODE, EXTCODECOPY, EXTCODEHASH, EXTCODESIZE
 				opCodes := []vm.OpCode{vm.DELEGATECALL, vm.CALL, vm.STATICCALL, vm.CALLCODE, vm.EXTCODECOPY,
 					vm.EXTCODEHASH, vm.EXTCODESIZE}
-				keep := false
+				_, keep := codeReads[addr]
 				for _, opCode := range opCodes {
 					if _, ok := t.addrOpCodes[addr][opCode]; ok {
 						keep = true
@@ -287,6 +310,8 @@ func (t *zeroTracer) CaptureTxEnd(restGas uint64) {
 			*trace.SelfDestructed = true
 		}
 	}
+
+	tds.ClearUpdates()
 
 	receipt := &types.Receipt{Type: t.ctx.Txn.Type(), CumulativeGasUsed: *t.ctx.CumulativeGasUsed}
 	receipt.Status = t.txStatus
