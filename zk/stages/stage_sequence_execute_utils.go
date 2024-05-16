@@ -190,7 +190,8 @@ func prepareHeader(tx kv.RwTx, previousBlockNumber, deltaTimestamp, forkId uint6
 	useTimestampOffsetFromParentBlock := deltaTimestamp != math.MaxUint64
 
 	nextBlockNum := previousBlockNumber + 1
-	newBlockTimestamp := uint64(time.Now().Unix())
+	// newBlockTimestamp := uint64(time.Now().Unix())
+	newBlockTimestamp := parentBlock.Time()
 	if useTimestampOffsetFromParentBlock {
 		newBlockTimestamp = parentBlock.Time() + deltaTimestamp
 	}
