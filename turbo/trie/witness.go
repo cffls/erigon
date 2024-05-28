@@ -15,7 +15,7 @@ type WitnessStorage interface {
 // WitnessVersion represents the current version of the block witness
 // in case of incompatible changes it should be updated and the code to migrate the
 // old witness format should be present
-const WitnessVersion = uint8(1)
+const WitnessVersion = uint8(0)
 
 // WitnessHeader contains version information and maybe some future format bits
 // the version is always the 1st bit.

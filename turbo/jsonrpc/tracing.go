@@ -42,6 +42,10 @@ func (api *PrivateDebugAPIImpl) TraceBlockByHash(ctx context.Context, hash commo
 	return api.traceBlock(ctx, rpc.BlockNumberOrHashWithHash(hash, true), config, stream)
 }
 
+type ZeroTracerConfig struct {
+	Witness bool `json:"witness"` // If true, this tracer will return block witness
+}
+
 func (api *PrivateDebugAPIImpl) traceBlock(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash, config *tracers.TraceConfig, stream *jsoniter.Stream) error {
 	tx, err := api.db.BeginRo(ctx)
 	if err != nil {
@@ -127,11 +131,9 @@ func (api *PrivateDebugAPIImpl) traceBlock(ctx context.Context, blockNrOrHash rp
 
 		stream.WriteObjectStart()
 
-		if config.Tracer != nil && *config.Tracer != "zeroTracer" {
-			stream.WriteObjectField("txHash")
-			stream.WriteString(txnHash.Hex())
-			stream.WriteMore()
-		}
+		stream.WriteObjectField("txHash")
+		stream.WriteString(txnHash.Hex())
+		stream.WriteMore()
 
 		stream.WriteObjectField("result")
 		select {
@@ -200,53 +202,63 @@ func (api *PrivateDebugAPIImpl) traceBlock(ctx context.Context, blockNrOrHash rp
 	}
 
 	if config.Tracer != nil && *config.Tracer == "zeroTracer" {
-		if len(txns) != 0 {
-			stream.WriteMore()
-		}
-		stream.WriteObjectStart()
-		stream.WriteObjectField("block_witness")
-
-		k := make([]byte, 8)
-
-		binary.LittleEndian.PutUint64(k[:], block.NumberU64())
-
-		var witness_bytes []byte
-
-		// Try read from DB
-		// if block.NumberU64() > 0 {
-		// 	witness_bytes, err = stateless.ReadChunks(tx, kv.Witnesses, k)
-		// }
-
-		// If not found, compute witness directly
-		if len(witness_bytes) == 0 || err != nil {
-			witness_bytes, err = api.getWitness(ctx, api.db, blockNrOrHash, 0, true, 100000, log.Root())
+		var zeroConfig ZeroTracerConfig
+		if config.TracerConfig != nil {
+			if err := json.Unmarshal(*config.TracerConfig, &zeroConfig); err != nil {
+				return err
+			}
 		}
 
-		if err != nil {
-			log.Warn("error while getting witness", "err", err)
-			stream.WriteNil()
-			return err
+		if zeroConfig.Witness {
+
+			if len(txns) != 0 {
+				stream.WriteMore()
+			}
+			stream.WriteObjectStart()
+			stream.WriteObjectField("block_witness")
+
+			k := make([]byte, 8)
+
+			binary.LittleEndian.PutUint64(k[:], block.NumberU64())
+
+			var witness_bytes []byte
+
+			// Try read from DB
+			// if block.NumberU64() > 0 {
+			// 	witness_bytes, err = stateless.ReadChunks(tx, kv.Witnesses, k)
+			// }
+
+			// If not found, compute witness directly
+			if len(witness_bytes) == 0 || err != nil {
+				witness_bytes, err = api.getWitness(ctx, api.db, blockNrOrHash, 0, true, 100000, log.Root())
+			}
+
+			if err != nil {
+				log.Warn("error while getting witness", "err", err)
+				stream.WriteNil()
+				return err
+			}
+
+			preImage := types.TriePreImage{
+				Combined: types.CombinedPreImages{
+					Compact: hexutility.Bytes(witness_bytes),
+				},
+			}
+
+			preImageHex, err := json.Marshal(preImage)
+
+			if err != nil {
+				log.Warn("error while marshalling preImage", "err", err)
+				stream.WriteNil()
+				return err
+			}
+
+			stream.Write(json.RawMessage(preImageHex))
+
+			stream.WriteObjectEnd()
+
+			stream.Flush()
 		}
-
-		preImage := types.TriePreImage{
-			Combined: types.CombinedPreImages{
-				Compact: hexutility.Bytes(witness_bytes),
-			},
-		}
-
-		preImageHex, err := json.Marshal(preImage)
-
-		if err != nil {
-			log.Warn("error while marshalling preImage", "err", err)
-			stream.WriteNil()
-			return err
-		}
-
-		stream.Write(json.RawMessage(preImageHex))
-
-		stream.WriteObjectEnd()
-
-		stream.Flush()
 	}
 
 	stream.WriteArrayEnd()
