@@ -111,6 +111,14 @@ func (sdb *IntraBlockState) SetTrace(trace bool) {
 	sdb.trace = trace
 }
 
+func (sdb *IntraBlockState) SetStateReader(stateReader StateReader) {
+	sdb.stateReader = stateReader
+}
+
+func (sdb *IntraBlockState) GetStateReader() StateReader {
+	return sdb.stateReader
+}
+
 func (sdb *IntraBlockState) SetDisableBalanceInc(disable bool) {
 	sdb.disableBalanceInc = disable
 }

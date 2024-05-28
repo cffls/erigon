@@ -1,14 +1,11 @@
 package state
 
 import (
-	"fmt"
-
 	"github.com/ledgerwatch/erigon-lib/common"
-	"github.com/ledgerwatch/erigon-lib/kv"
 )
 
 type PreimageWriter struct {
-	db            kv.Getter
+	preImageMap   map[string][]byte
 	savePreimages bool
 }
 
@@ -33,20 +30,24 @@ func (pw *PreimageWriter) HashKey(key *common.Hash, save bool) (common.Hash, err
 }
 
 func (pw *PreimageWriter) savePreimage(save bool, hash []byte, preimage []byte) error {
-	if !save || !pw.savePreimages {
-		return nil
-	}
-	// Following check is to minimise the overwriting the same value of preimage
-	// in the database, which would cause extra write churn
-	if p, _ := pw.db.GetOne(kv.PreimagePrefix, hash); p != nil {
+	if !pw.savePreimages {
 		return nil
 	}
 
-	putter, ok := pw.db.(kv.Putter)
-
-	if !ok {
-		return fmt.Errorf("db does not support putter interface")
+	if pw.preImageMap == nil {
+		pw.preImageMap = make(map[string][]byte)
 	}
 
-	return putter.Put(kv.PreimagePrefix, hash, preimage)
+	if _, ok := pw.preImageMap[string(hash)]; !ok {
+		pw.preImageMap[string(hash)] = preimage
+	}
+
+	return nil
+}
+
+func (pw *PreimageWriter) GetPreimage(hash common.Hash) []byte {
+	if pw.preImageMap == nil {
+		return nil
+	}
+	return pw.preImageMap[string(hash[:])]
 }
