@@ -253,7 +253,7 @@ func NewTrieDbState(root common.Hash, db kv.Tx, blockNr uint64, stateReader Stat
 		blockNr:           blockNr,
 		retainListBuilder: trie.NewRetainListBuilder(),
 		tp:                tp,
-		pw:                &PreimageWriter{savePreimages: true},
+		pw:                &PreimageWriter{db: db, savePreimages: true},
 		hashBuilder:       trie.NewHashBuilder(false),
 		incarnationMap:    make(map[common.Address]uint64),
 	}
@@ -301,7 +301,7 @@ func (tds *TrieDbState) Copy() *TrieDbState {
 		db:             tds.db,
 		blockNr:        n,
 		tp:             tp,
-		pw:             &PreimageWriter{savePreimages: true},
+		pw:             &PreimageWriter{db: tds.db, savePreimages: true},
 		hashBuilder:    trie.NewHashBuilder(false),
 		incarnationMap: make(map[common.Address]uint64),
 	}
@@ -439,20 +439,6 @@ func (tds *TrieDbState) buildStorageReads() common.StorageKeys {
 	return storageTouches
 }
 
-func (tds *TrieDbState) BuildStorageReads() map[common.Address][]common.Hash {
-	storageReads := make(map[common.Address][]common.Hash)
-	for storageKey := range tds.aggregateBuffer.storageReads {
-		addr := common.BytesToAddress(tds.pw.GetPreimage(common.BytesToHash(storageKey[:length.Hash])))
-
-		if _, ok := storageReads[addr]; !ok {
-			storageReads[addr] = make([]common.Hash, 0)
-		}
-
-		storageReads[addr] = append(storageReads[addr], common.BytesToHash(storageKey[length.Hash+length.Incarnation:]))
-	}
-	return storageReads
-}
-
 // buildStorageWrites builds a sorted list of all storage key hashes that were modified within the
 // period for which we are aggregating updates. It skips the updates that
 // were nullified by subsequent updates - best example is the
@@ -496,14 +482,6 @@ func (tds *TrieDbState) buildCodeTouches() map[common.Hash]common.Hash {
 	return tds.aggregateBuffer.codeReads
 }
 
-func (tds *TrieDbState) BuildCodeReads() map[common.Address]common.Hash {
-	addresses := make(map[common.Address]common.Hash)
-	for addrHash, codeHash := range tds.aggregateBuffer.codeReads {
-		addresses[common.BytesToAddress(tds.pw.GetPreimage(addrHash))] = codeHash
-	}
-	return addresses
-}
-
 func (tds *TrieDbState) buildCodeSizeTouches() map[common.Hash]common.Hash {
 	return tds.aggregateBuffer.codeSizeReads
 }
@@ -518,15 +496,6 @@ func (tds *TrieDbState) buildAccountReads() common.Hashes {
 	}
 	sort.Sort(accountTouches)
 	return accountTouches
-}
-
-func (tds *TrieDbState) BuildAddressReads() []common.Address {
-	accountTouches := tds.buildAccountReads()
-	addresses := make([]common.Address, len(accountTouches))
-	for i, addrHash := range accountTouches {
-		addresses[i] = common.BytesToAddress(tds.pw.GetPreimage(addrHash))
-	}
-	return addresses
 }
 
 // buildAccountWrites builds a sorted list of all address hashes that were modified within the
