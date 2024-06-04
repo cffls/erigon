@@ -6,9 +6,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	libcommon "github.com/gateway-fm/cdk-erigon-lib/common"
 )
+
+const maxAttempts = 10
+const retryDelay = 500 * time.Millisecond
 
 // ErrorObject is a jsonrpc error
 type ErrorObject struct {
@@ -34,30 +38,42 @@ type Response struct {
 }
 
 func JSONRPCCallWithContext(ctx context.Context, url, method string, parameters ...interface{}) (Response, error) {
-	httpReq, err := BuildJsonHTTPRequest(ctx, url, method, parameters...)
-	if err != nil {
-		return Response{}, err
+	attemp := 0
+
+	for attemp < maxAttempts {
+		httpReq, err := BuildJsonHTTPRequest(ctx, url, method, parameters...)
+		if err != nil {
+			return Response{}, err
+		}
+
+		httpRes, err := http.DefaultClient.Do(httpReq)
+		if err != nil {
+			return Response{}, err
+		}
+
+		if httpRes.Body != nil {
+			defer httpRes.Body.Close()
+		}
+
+		if httpRes.StatusCode == http.StatusTooManyRequests {
+			time.Sleep(retryDelay)
+			attemp += 1
+			continue
+		}
+
+		if httpRes.StatusCode != http.StatusOK {
+			return Response{}, fmt.Errorf("invalid status code, expected: %v, found: %v", http.StatusOK, httpRes.StatusCode)
+		}
+
+		var res Response
+		if err = json.NewDecoder(httpRes.Body).Decode(&res); err != nil {
+			return Response{}, err
+		}
+
+		return res, nil
 	}
 
-	httpRes, err := http.DefaultClient.Do(httpReq)
-	if err != nil {
-		return Response{}, err
-	}
-
-	if httpRes.Body != nil {
-		defer httpRes.Body.Close()
-	}
-
-	if httpRes.StatusCode != http.StatusOK {
-		return Response{}, fmt.Errorf("invalid status code, expected: %v, found: %v", http.StatusOK, httpRes.StatusCode)
-	}
-
-	var res Response
-	if err = json.NewDecoder(httpRes.Body).Decode(&res); err != nil {
-		return Response{}, err
-	}
-
-	return res, nil
+	return Response{}, fmt.Errorf("max attempts of data fetching reached, attemps: %v, DA url: %s", maxAttempts, url)
 }
 
 // BuildJsonHTTPRequest creates JSON RPC http request using provided url, method and parameters
