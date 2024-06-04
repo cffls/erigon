@@ -151,7 +151,7 @@ LOOP:
 				lastBatchSequenced := l.Topics[1].Big().Uint64()
 				latestBatch = lastBatchSequenced
 
-				batches, coinbase, err := l1_data.DecodeL1BatchData(transaction.GetData())
+				batches, coinbase, err := l1_data.DecodeL1BatchData(transaction.GetData(), cfg.zkCfg.DAUrl)
 				if err != nil {
 					return err
 				}
