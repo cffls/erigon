@@ -45,6 +45,8 @@ type Zk struct {
 	DefaultGasPrice                        uint64
 	MaxGasPrice                            uint64
 	GasPriceFactor                         float64
+	Validium                               bool
+	DAUrl                                  string
 
 	RebuildTreeAfter    uint64
 	IncrementTreeAlways bool
