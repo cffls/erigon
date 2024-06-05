@@ -112,10 +112,10 @@ func AllComponents(ctx context.Context, cfg txpoolcfg.Config, ethCfg *ethconfig.
 		return nil, nil, nil, nil, nil, err
 	}
 
-	// aclDB, err := txpool.OpenACLDB(ctx, cfg.DBDir)
-	// if err != nil {
-	// 	return nil, nil, nil, nil, nil, err
-	// }
+	aclDB, err := txpool.OpenACLDB(ctx, cfg.DBDir)
+	if err != nil {
+		return nil, nil, nil, nil, nil, err
+	}
 
 	chainConfig, _, err := SaveChainConfigIfNeed(ctx, chainDB, txPoolDB, true)
 	if err != nil {
@@ -129,7 +129,7 @@ func AllComponents(ctx context.Context, cfg txpoolcfg.Config, ethCfg *ethconfig.
 		shanghaiTime = cfg.OverrideShanghaiTime
 	}
 
-	txPool, err := txpool.New(newTxs, chainDB, cfg, ethCfg, cache, *chainID, shanghaiTime, chainConfig.LondonBlock, nil)
+	txPool, err := txpool.New(newTxs, chainDB, cfg, ethCfg, cache, *chainID, shanghaiTime, chainConfig.LondonBlock, aclDB)
 	if err != nil {
 		return nil, nil, nil, nil, nil, err
 	}
