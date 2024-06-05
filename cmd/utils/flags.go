@@ -591,11 +591,6 @@ var (
 		Usage: "Output the payload of the executor, serialised requests stored to disk by batch number",
 		Value: "",
 	}
-	Validium = cli.BoolFlag{
-		Name:  "zkevm.validium",
-		Usage: "Support gasless transactions",
-		Value: false,
-	}
 	DAUrl = cli.StringFlag{
 		Name:  "zkevm.da-url",
 		Usage: "The URL of the data availability service",

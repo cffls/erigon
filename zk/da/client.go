@@ -8,7 +8,8 @@ import (
 	"net/http"
 	"time"
 
-	libcommon "github.com/gateway-fm/cdk-erigon-lib/common"
+	"github.com/gateway-fm/cdk-erigon-lib/common"
+	"github.com/ledgerwatch/erigon/common/hexutil"
 )
 
 const maxAttempts = 10
@@ -110,7 +111,7 @@ func BuildJsonHttpRequestWithBody(ctx context.Context, url string, reqBody []byt
 	return httpReq, nil
 }
 
-func GetOffChainData(ctx context.Context, url string, hash libcommon.Hash) ([]byte, error) {
+func GetOffChainData(ctx context.Context, url string, hash common.Hash) ([]byte, error) {
 	response, err := JSONRPCCallWithContext(ctx, url, "sync_getOffChainData", hash)
 	if err != nil {
 		return nil, err
@@ -120,5 +121,5 @@ func GetOffChainData(ctx context.Context, url string, hash libcommon.Hash) ([]by
 		return nil, fmt.Errorf("%v %v", response.Error.Code, response.Error.Message)
 	}
 
-	return libcommon.FromHex(response.Result), nil
+	return hexutil.Decode(response.Result)
 }
