@@ -6,10 +6,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gateway-fm/cdk-erigon-lib/common"
 	"github.com/ledgerwatch/erigon/common/hexutil"
+
+	"github.com/ledgerwatch/erigon/zkevm/jsonrpc/client"
 )
 
 const maxAttempts = 10
@@ -112,14 +115,27 @@ func BuildJsonHttpRequestWithBody(ctx context.Context, url string, reqBody []byt
 }
 
 func GetOffChainData(ctx context.Context, url string, hash common.Hash) ([]byte, error) {
-	response, err := JSONRPCCallWithContext(ctx, url, "sync_getOffChainData", hash)
-	if err != nil {
-		return nil, err
+	attemp := 0
+
+	for attemp < maxAttempts {
+		response, err := client.JSONRPCCall(url, "sync_getOffChainData", hash)
+
+		if httpErr, ok := err.(*client.HTTPError); ok && httpErr.StatusCode == http.StatusTooManyRequests {
+			time.Sleep(retryDelay)
+			attemp += 1
+			continue
+		}
+
+		if err != nil {
+			return nil, err
+		}
+
+		if response.Error != nil {
+			return nil, fmt.Errorf("%v %v", response.Error.Code, response.Error.Message)
+		}
+
+		return hexutil.Decode(strings.Trim(string(response.Result), "\""))
 	}
 
-	if response.Error != nil {
-		return nil, fmt.Errorf("%v %v", response.Error.Code, response.Error.Message)
-	}
-
-	return hexutil.Decode(response.Result)
+	return nil, fmt.Errorf("max attempts of data fetching reached, attemps: %v, DA url: %s", maxAttempts, url)
 }

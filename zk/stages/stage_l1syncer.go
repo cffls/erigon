@@ -231,9 +231,13 @@ func parseLogType(l1RollupId uint64, log *ethTypes.Log) (l1BatchInfo types.L1Bat
 		batchNum = new(big.Int).SetBytes(log.Topics[1].Bytes()).Uint64()
 		stateRoot = common.BytesToHash(log.Data[:32])
 	case contracts.VerificationValidiumTopicEtrog:
-		batchLogType = logVerify
-		batchNum = new(big.Int).SetBytes(log.Topics[1].Bytes()).Uint64()
-		stateRoot = common.BytesToHash(log.Data[:32])
+		if isRollupIdMatching {
+			batchLogType = logVerify
+			batchNum = new(big.Int).SetBytes(log.Topics[1].Bytes()).Uint64()
+			stateRoot = common.BytesToHash(log.Data[:32])
+		} else {
+			batchLogType = logIncompatible
+		}
 	case contracts.VerificationTopicEtrog:
 		if isRollupIdMatching {
 			batchLogType = logVerify
