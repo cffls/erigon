@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/gateway-fm/cdk-erigon-lib/common"
+	"github.com/ledgerwatch/erigon/zkevm/jsonrpc/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -60,7 +61,7 @@ func TestClient_GetOffChainData(t *testing.T) {
 			t.Parallel()
 
 			svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				var res Request
+				var res types.Request
 				require.NoError(t, json.NewDecoder(r.Body).Decode(&res))
 				require.Equal(t, "sync_getOffChainData", res.Method)
 

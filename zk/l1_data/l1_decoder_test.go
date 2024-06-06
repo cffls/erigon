@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"github.com/gateway-fm/cdk-erigon-lib/common"
-	"github.com/ledgerwatch/erigon/zk/da"
 	zktx "github.com/ledgerwatch/erigon/zk/tx"
+	"github.com/ledgerwatch/erigon/zkevm/jsonrpc/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -42,7 +42,7 @@ func Test_DecodeL1BatchValidiumData(t *testing.T) {
 	txData := common.FromHex(testData)
 
 	svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var res da.Request
+		var res types.Request
 		require.NoError(t, json.NewDecoder(r.Body).Decode(&res))
 		require.Equal(t, "sync_getOffChainData", res.Method)
 
