@@ -39,5 +39,5 @@ func GetOffChainData(ctx context.Context, url string, hash common.Hash) ([]byte,
 		return hexutil.Decode(strings.Trim(string(response.Result), "\""))
 	}
 
-	return nil, fmt.Errorf("max attempts of data fetching reached, attemps: %v, DA url: %s", maxAttempts, url)
+	return nil, fmt.Errorf("max attempts of data fetching reached, attempts: %v, DA url: %s", maxAttempts, url)
 }
