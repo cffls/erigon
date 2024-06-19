@@ -27,7 +27,7 @@ import (
 )
 
 // [zkevm] contains the list of zkevm precompiles
-func (evm *EVM) precompile(addr libcommon.Address, retSize int) (PrecompiledContract_zkEvm, bool) {
+func (evm *EVM) precompile_zkevm(addr libcommon.Address, retSize int) (PrecompiledContract_zkEvm, bool) {
 	var precompiles map[libcommon.Address]PrecompiledContract_zkEvm
 	switch {
 	case evm.chainRules.IsForkID8Elderberry:
@@ -50,6 +50,10 @@ func (evm *EVM) precompile(addr libcommon.Address, retSize int) (PrecompiledCont
 // NewEVM returns a new EVM. The returned EVM is not thread safe and should
 // only ever be used *once*.
 func NewZkEVM(blockCtx evmtypes.BlockContext, txCtx evmtypes.TxContext, state evmtypes.IntraBlockState, chainConfig *chain.Config, zkVmConfig ZkConfig) *EVM {
+	if chainConfig.Rules(blockCtx.BlockNumber, blockCtx.Time).IsNormalcy {
+		return NewEVM(blockCtx, txCtx, state, chainConfig, zkVmConfig.Config)
+	}
+
 	evm :=
 		&EVM{
 			Context:         blockCtx,
@@ -226,6 +230,10 @@ func (evm *EVM) StaticCall_zkEvm(caller ContractRef, addr libcommon.Address, inp
 }
 
 func (evm *EVM) call_zkevm(typ OpCode, caller ContractRef, addr libcommon.Address, input []byte, gas uint64, value *uint256.Int, bailout bool, intrinsicGas uint64, retSize int) (ret []byte, leftOverGas uint64, err error) {
+	if evm.ChainRules().IsNormalcy {
+		return evm.call(typ, caller, addr, input, gas, value, bailout, intrinsicGas)
+	}
+
 	depth := evm.interpreter.Depth()
 
 	if evm.config.NoRecursion && depth > 0 {
@@ -243,7 +251,7 @@ func (evm *EVM) call_zkevm(typ OpCode, caller ContractRef, addr libcommon.Addres
 			}
 		}
 	}
-	p, isPrecompile := evm.precompile(addr, retSize)
+	p, isPrecompile := evm.precompile_zkevm(addr, retSize)
 	var code []byte
 	if !isPrecompile {
 		code = evm.intraBlockState.GetCode(addr)
