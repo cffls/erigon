@@ -5,9 +5,6 @@ on:
     branches: [feat/zero]
   release:
     types: [created]
-#TODO: remove, just for initial build test
-  pull_request:
-    branches: [feat/zero]    
 
 env:
   REGISTRY: ghcr.io
@@ -43,8 +40,7 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=ref,event=branch
-            type=ref,value=test,event=pr
-            type=raw,value=test,enable={{is_default_branch}}
+            type=ref,event=pr
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
 
