@@ -117,7 +117,11 @@ func NewEVM(blockCtx evmtypes.BlockContext, txCtx evmtypes.TxContext, state evmt
 	}
 
 	// [zkevm] change
-	evm.interpreter = NewZKEVMInterpreter(evm, NewZkConfig(vmConfig, nil))
+	if evm.ChainRules().IsNormalcy {
+		evm.interpreter = NewEVMInterpreter(evm, vmConfig)
+	} else {
+		evm.interpreter = NewZKEVMInterpreter(evm, NewZkConfig(vmConfig, nil))
+	}
 
 	return evm
 }
