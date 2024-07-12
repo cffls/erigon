@@ -186,7 +186,6 @@ func (mt *L1InfoTree) AddLeaf(index uint32, leaf [32]byte) (common.Hash, error) 
 
 func (mt *L1InfoTree) LeafExists(leaf [32]byte) bool {
 	_, ok := mt.allLeaves[leaf]
-	log.Info("All leaves: ", mt.allLeaves)
 	return ok
 }
 
