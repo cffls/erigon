@@ -95,6 +95,7 @@ jobs:
         working-directory: ./kurtosis-cdk
         run: |
           sed -i '/zkevm.sequencer-batch-seal-time:/d' templates/cdk-erigon/config.yml
+          sed -i '/zkevm.sequencer-non-empty-batch-seal-time:/d' templates/cdk-erigon/config.yml
 
       - name: Configure Kurtosis CDK
         working-directory: ./kurtosis-cdk
@@ -173,7 +174,8 @@ jobs:
           kurtosis service logs cdk-v1 cdk-erigon-sequencer-001 --all > cdk-erigon-sequencer-001.log
           kurtosis service logs cdk-v1 zkevm-agglayer-001 --all > zkevm-agglayer-001.log
           kurtosis service logs cdk-v1 zkevm-prover-001 --all > zkevm-prover-001.log
-          kurtosis service logs cdk-v1 zkevm-executor-pless-001 --all > zkevm-executor-pless-001.log
+          kurtosis service logs cdk-v1 cdk-node-001 --all > cdk-node-001.log
+          kurtosis service logs cdk-v1 zkevm-bridge-service-001 --all > zkevm-bridge-service-001.log
 
       - name: Upload logs
         if: failure()
