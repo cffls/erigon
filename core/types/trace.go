@@ -24,7 +24,6 @@ type TxnTrace struct {
 
 type TxnMeta struct {
 	ByteCode           hexutility.Bytes `json:"byte_code,omitempty"`
-	NewTxnTrieNode     hexutility.Bytes `json:"new_txn_trie_node_byte,omitempty"`
 	NewReceiptTrieNode hexutility.Bytes `json:"new_receipt_trie_node_byte,omitempty"`
 	GasUsed            uint64           `json:"gas_used,omitempty"`
 }

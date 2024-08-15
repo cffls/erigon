@@ -321,7 +321,6 @@ func (t *zeroTracer) CaptureTxEnd(restGas uint64) {
 		return
 	}
 
-	t.tx.Meta.NewTxnTrieNode = txBuffer.Bytes()
 	t.tx.Meta.ByteCode = txBuffer.Bytes()
 }
 
