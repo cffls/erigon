@@ -536,7 +536,8 @@ func (db *HermezDb) WriteSequence(l1BlockNo, batchNo uint64, l1TxHash, stateRoot
 	return db.tx.Put(L1SEQUENCES, ConcatKey(l1BlockNo, batchNo), val)
 }
 
-func (db *HermezDb) RollbackSequence(batchNo uint64) error {
+// RollbackSequences deletes the sequences up to the given batch number
+func (db *HermezDb) RollbackSequences(batchNo uint64) error {
 	for {
 		latestSequence, err := db.GetLatestSequence()
 		if err != nil {
