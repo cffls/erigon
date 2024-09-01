@@ -98,11 +98,6 @@ func (t *zeroTracer) CaptureTxStart(gasLimit uint64) {
 
 // CaptureState implements the EVMLogger interface to trace a single step of VM execution.
 func (t *zeroTracer) CaptureState(pc uint64, op vm.OpCode, gas, cost uint64, scope *vm.ScopeContext, rData []byte, depth int, err error) {
-	// Only continue if the error is nil or if the error is out of gas and the opcode is SSTORE, CALL, or SELFDESTRUCT
-	if !(err == nil || (err == vm.ErrOutOfGas && (op == vm.SSTORE || op == vm.CALL || op == vm.SELFDESTRUCT))) {
-		return
-	}
-
 	// Skip if tracing was interrupted
 	if t.interrupt.Load() {
 		return
@@ -120,42 +115,21 @@ func (t *zeroTracer) CaptureState(pc uint64, op vm.OpCode, gas, cost uint64, sco
 		t.addSLOADToAccount(caller, slot)
 	case stackLen >= 1 && op == vm.SSTORE:
 		slot := libcommon.Hash(stackData[stackLen-1].Bytes32())
-
-		// If the SSTORE is out of gas and the slot is in live state, we will add the slot to account read
-		if err == vm.ErrOutOfGas {
-			if t.env.IntraBlockState().HasLiveState(caller, &slot) {
-				t.addAccountToTrace(caller)
-				t.addSLOADToAccount(caller, slot)
-			}
-			return
-		}
 		t.addAccountToTrace(caller)
 		t.addSSTOREToAccount(caller, slot, stackData[stackLen-2].Clone())
 	case stackLen >= 1 && (op == vm.EXTCODECOPY || op == vm.EXTCODEHASH || op == vm.EXTCODESIZE || op == vm.BALANCE || op == vm.SELFDESTRUCT):
 		addr := libcommon.Address(stackData[stackLen-1].Bytes20())
-
-		if err == vm.ErrOutOfGas && op == vm.SELFDESTRUCT {
-			if t.env.IntraBlockState().HasLiveAccount(addr) {
-				t.addAccountToTrace(addr)
-			}
-			return
-		}
 		t.addAccountToTrace(addr)
 		t.addOpCodeToAccount(addr, op)
 	case stackLen >= 5 && (op == vm.DELEGATECALL || op == vm.CALL || op == vm.STATICCALL || op == vm.CALLCODE):
 		addr := libcommon.Address(stackData[stackLen-2].Bytes20())
-
-		// If the call is out of gas, we will add account but not the opcode
-		if err == vm.ErrOutOfGas && op == vm.CALL {
-			if t.env.IntraBlockState().HasLiveAccount(addr) {
-				t.addAccountToTrace(addr)
-			}
-			return
-		}
 		t.addAccountToTrace(addr)
 		t.addOpCodeToAccount(addr, op)
 	case op == vm.CREATE:
-		nonce := t.env.IntraBlockState().GetNonce(caller)
+		nonce := uint64(0)
+		if t.env.IntraBlockState().HasLiveAccount(caller) {
+			nonce = t.env.IntraBlockState().GetNonce(caller)
+		}
 		addr := crypto.CreateAddress(caller, nonce)
 		t.addAccountToTrace(addr)
 		t.addOpCodeToAccount(addr, op)
@@ -203,7 +177,16 @@ func (t *zeroTracer) CaptureTxEnd(restGas uint64) {
 	t.tx.Meta.GasUsed = t.gasLimit - restGas
 	*t.ctx.CumulativeGasUsed += t.tx.Meta.GasUsed
 
+	toDelete := make([]libcommon.Address, 0)
 	for addr := range t.tx.Traces {
+		// Check again if the account was accessed through IntraBlockState
+		seenAccount := t.env.IntraBlockState().SeenAccount(addr)
+		// If an account was never accessed through IntraBlockState, it means that never there was an OpCode that read into it or checks whether it exists in the state trie, and therefore we don't need the trace of it.
+		if !seenAccount {
+			toDelete = append(toDelete, addr)
+			continue
+		}
+
 		trace := t.tx.Traces[addr]
 		hasLiveAccount := t.env.IntraBlockState().HasLiveAccount(addr)
 		newBalance := t.env.IntraBlockState().GetBalance(addr)
@@ -227,7 +210,9 @@ func (t *zeroTracer) CaptureTxEnd(restGas uint64) {
 		if len(trace.StorageReadMap) > 0 && hasLiveAccount {
 			trace.StorageRead = make([]libcommon.Hash, 0, len(trace.StorageReadMap))
 			for k := range trace.StorageReadMap {
-				trace.StorageRead = append(trace.StorageRead, k)
+				if t.env.IntraBlockState().HasLiveState(addr, &k) {
+					trace.StorageRead = append(trace.StorageRead, k)
+				}
 			}
 		} else {
 			trace.StorageRead = nil
@@ -286,6 +271,10 @@ func (t *zeroTracer) CaptureTxEnd(restGas uint64) {
 			trace.SelfDestructed = new(bool)
 			*trace.SelfDestructed = true
 		}
+	}
+
+	for _, addr := range toDelete {
+		delete(t.tx.Traces, addr)
 	}
 
 	receipt := &types.Receipt{Type: t.ctx.Txn.Type(), CumulativeGasUsed: *t.ctx.CumulativeGasUsed}
@@ -361,12 +350,19 @@ func (t *zeroTracer) addAccountToTrace(addr libcommon.Address) {
 		return
 	}
 
-	nonce := uint256.NewInt(t.env.IntraBlockState().GetNonce(addr))
-	codeHash := t.env.IntraBlockState().GetCodeHash(addr)
+	balance := uint256.NewInt(0)
+	nonce := uint256.NewInt(0)
+	codeHash := libcommon.Hash{}
+
+	if t.env.IntraBlockState().HasLiveAccount(addr) {
+		nonce = uint256.NewInt(t.env.IntraBlockState().GetNonce(addr))
+		balance = t.env.IntraBlockState().GetBalance(addr)
+		codeHash = t.env.IntraBlockState().GetCodeHash(addr)
+	}
 
 	t.tx.Traces[addr] = &types.TxnTrace{
-		Balance:        t.env.IntraBlockState().GetBalance(addr).Clone(),
-		Nonce:          nonce,
+		Balance:        balance.Clone(),
+		Nonce:          nonce.Clone(),
 		CodeUsage:      &types.ContractCodeUsage{Read: &codeHash},
 		StorageWritten: make(map[libcommon.Hash]*uint256.Int),
 		StorageRead:    make([]libcommon.Hash, 0),
@@ -375,10 +371,7 @@ func (t *zeroTracer) addAccountToTrace(addr libcommon.Address) {
 }
 
 func (t *zeroTracer) addSLOADToAccount(addr libcommon.Address, key libcommon.Hash) {
-	var value uint256.Int
-	t.env.IntraBlockState().GetState(addr, &key, &value)
 	t.tx.Traces[addr].StorageReadMap[key] = struct{}{}
-
 	t.addOpCodeToAccount(addr, vm.SLOAD)
 }
 
