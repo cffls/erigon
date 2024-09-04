@@ -115,4 +115,5 @@ type IntraBlockState interface {
 	AddLog(*types.Log)
 
 	GetLogs(hash common.Hash) []*types.Log
+	SetDisableBalanceInc(disable bool)
 }

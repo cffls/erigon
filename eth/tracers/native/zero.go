@@ -54,6 +54,8 @@ func (t *zeroTracer) CaptureStart(env *vm.EVM, from libcommon.Address, to libcom
 	t.to = &to
 	t.env = env
 
+	t.env.IntraBlockState().SetDisableBalanceInc(true)
+
 	t.addAccountToTrace(from)
 	t.addAccountToTrace(to)
 	t.addAccountToTrace(env.Context.Coinbase)
