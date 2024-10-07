@@ -617,7 +617,7 @@ func UnwindExecutionStageDbWrites(ctx context.Context, u *UnwindState, s *StageS
 	if err = rawdb.TruncateBlocks(ctx, tx, u.UnwindPoint+1); err != nil {
 		return fmt.Errorf("delete blocks: %w", err)
 	}
-	if err = rawdb.TruncateCanonicalHash(tx, u.UnwindPoint+1, true); err != nil {
+	if err = rawdb.TruncateCanonicalHash(tx, u.UnwindPoint+1, false); err != nil {
 		return fmt.Errorf("delete cannonical hash with headers: %w", err)
 	}
 	if err = rawdb.TruncateStateVersion(tx, u.UnwindPoint+1); err != nil {
