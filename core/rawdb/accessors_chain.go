@@ -80,6 +80,7 @@ func TruncateCanonicalHash(tx kv.RwTx, blockFrom uint64, markChainAsBad bool) er
 				return err
 			}
 		}
+		DeleteHeader(tx, common.BytesToHash(blockHash), binary.BigEndian.Uint64(blockNumBytes))
 		return tx.Delete(kv.HeaderCanonical, blockNumBytes)
 	}); err != nil {
 		return fmt.Errorf("TruncateCanonicalHash: %w", err)
