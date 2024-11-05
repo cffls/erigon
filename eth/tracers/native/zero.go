@@ -220,7 +220,7 @@ func (t *zeroTracer) CaptureTxEnd(restGas uint64) {
 			trace.StorageRead = nil
 		}
 
-		if len(trace.StorageWritten) == 0 || !hasLiveAccount {
+		if len(trace.StorageWritten) == 0 || !hasLiveAccount || !t.env.IntraBlockState().IsDirty(addr) {
 			trace.StorageWritten = nil
 		} else {
 			// A slot write could be reverted if the transaction is reverted. We will need to read the value from the statedb again to get the correct value.
