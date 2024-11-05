@@ -426,10 +426,9 @@ func (sdb *IntraBlockState) SeenAccount(addr libcommon.Address) bool {
 	return ok
 }
 
-func (sdb *IntraBlockState) IsDirty(addr libcommon.Address) bool {
-	_, dirtyObj := sdb.stateObjectsDirty[addr]
-	_, dirtyJournal := sdb.journal.dirties[addr]
-	return dirtyObj || dirtyJournal
+func (sdb *IntraBlockState) IsDirtyJournal(addr libcommon.Address) bool {
+	_, ok := sdb.journal.dirties[addr]
+	return ok
 }
 
 func (sdb *IntraBlockState) HasLiveState(addr libcommon.Address, key *libcommon.Hash) bool {
