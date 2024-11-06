@@ -379,6 +379,7 @@ func (t *zeroTracer) addSLOADToAccount(addr libcommon.Address, key libcommon.Has
 
 func (t *zeroTracer) addSSTOREToAccount(addr libcommon.Address, key libcommon.Hash, value *uint256.Int) {
 	t.tx.Traces[addr].StorageWritten[key] = value
+	t.tx.Traces[addr].StorageReadMap[key] = struct{}{}
 	t.addOpCodeToAccount(addr, vm.SSTORE)
 }
 
